@@ -26,7 +26,32 @@ const nowIso = () => new Date().toISOString();
 const hm = (d = new Date()) => d.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", hour12: false });
 const cell = (s) => String(s || "").replace(/\|/g, "/").replace(/\r?\n/g, " ").trim();
 const readJson = (f, def) => { try { return JSON.parse(fs.readFileSync(f, "utf8").replace(/^﻿/, "")); } catch { return def; } };
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2) + "\n"); };
+// Ghi nguyên tử: ghi file tạm rồi đổi tên, để máy chủ văn phòng không bao giờ đọc phải file ghi dở.
+const writeJson = (f, v) => {
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  const tmp = f + "." + process.pid + ".tmp", s = JSON.stringify(v, null, 2) + "\n";
+  fs.writeFileSync(tmp, s);
+  try { fs.renameSync(tmp, f); } catch { try { fs.unlinkSync(tmp); } catch {} fs.writeFileSync(f, s); }
+};
+// Khóa ghi sổ: nhiều agent chạy vp cùng lúc thì lần lượt từng người (tránh đọc-sửa-ghi đè mất thay đổi của nhau).
+// Khóa là file data/.vp.lock tạo bằng cờ "wx" (nguyên tử); khóa quá 15 giây coi là của tiến trình đã chết và gỡ đi.
+const WLOCK = path.join(DATA, ".vp.lock");
+let held = false;
+const release = () => { if (held) { held = false; try { fs.unlinkSync(WLOCK); } catch {} } };
+process.on("exit", release);
+function acquire() {
+  fs.mkdirSync(DATA, { recursive: true });
+  const t0 = Date.now(), nap = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try { fs.closeSync(fs.openSync(WLOCK, "wx")); held = true; return; }
+    catch (e) {
+      if (e.code !== "EEXIST" && e.code !== "EPERM" && e.code !== "EBUSY") throw e;
+      try { if (Date.now() - fs.statSync(WLOCK).mtimeMs > 15000) fs.unlinkSync(WLOCK); } catch {}
+      if (Date.now() - t0 > 10000) die("Sổ đang bận (có lệnh vp khác giữ khóa quá 10 giây). Thử lại sau.");
+      Atomics.wait(nap, 0, 0, 40 + Math.floor(Math.random() * 60));
+    }
+  }
+}
 const appendLine = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.appendFileSync(f, JSON.stringify(v) + "\n"); };
 
 const HELP = `vp — công cụ điều phối của đội (sổ ở ${DATA})
@@ -115,9 +140,11 @@ function cmdLuot() {
   if (sub === "cho") { appendLine(LUOT, { su_kien: "cho", luc: nowIso(), vai, goi: need("goi"), sha: opt.sha || undefined }); return console.log(`${vai} đã xếp hàng chờ DEV.`); }
   if (sub === "huy") { appendLine(LUOT, { su_kien: "huy_cho", luc: nowIso(), vai }); return console.log(`${vai} đã rời hàng chờ.`); }
   if (sub === "lay") {
-    if (lock && mailbox.slug(lock.owner) !== mailbox.slug(vai)) die(`DEV đang do ${lock.owner} giữ (gói ${lock.package}). Xếp hàng: vp luot cho --goi … --vai "${vai}"`);
-    const goi = need("goi");
-    writeJson(LOCK, { owner: vai, package: goi, started: nowIso(), loai_luot: opt.loai || "deploy" });
+    const goi = need("goi"), mine = { owner: vai, package: goi, started: nowIso(), loai_luot: opt.loai || "deploy" };
+    const busy = (l) => die(`DEV đang do ${l.owner} giữ (gói ${l.package}). Xếp hàng: vp luot cho --goi … --vai "${vai}"`);
+    if (lock && mailbox.slug(lock.owner) !== mailbox.slug(vai)) busy(lock);
+    try { fs.writeFileSync(LOCK, JSON.stringify(mine, null, 2) + "\n", { flag: lock ? "w" : "wx" }); } // chưa ai giữ thì tạo nguyên tử, tránh hai người cùng lấy
+    catch (e) { if (e.code !== "EEXIST") throw e; const cur = readJson(LOCK, null); if (cur && mailbox.slug(cur.owner) !== mailbox.slug(vai)) busy(cur); fs.writeFileSync(LOCK, JSON.stringify(mine, null, 2) + "\n"); }
     appendLine(LUOT, { su_kien: "lay", luc: nowIso(), vai, goi, loai: opt.loai || "deploy" });
     return console.log(`${vai} đã lấy lượt DEV cho gói ${goi}. Xong nhớ: vp luot nha --vai "${vai}" --ket-qua dat|hong`);
   }
@@ -150,7 +177,7 @@ function cmdCanAnh() {
   if (sub === "xong") {
     const ma = pos[2], tl = pos.slice(3).join(" ").trim(); if (!ma) die("Thiếu mã CA-n.");
     let hit = false;
-    text = text.split("\n").map((l) => { if (!new RegExp(`^\\|\\s*${ma}\\s*\\|`).test(l)) return l; hit = true; const c = l.split("|"); c[6] = ` XONG ${hm()}: ${cell(tl || "đã trả lời")} `; return c.join("|"); }).join("\n");
+    text = text.split("\n").map((l) => { if (!new RegExp(`^\\|\\s*${ma.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\|`).test(l)) return l; hit = true; const c = l.split("|"); c[6] = ` XONG ${hm()}: ${cell(tl || "đã trả lời")} `; return c.join("|"); }).join("\n");
     if (!hit) die(`Không thấy ${ma}.`);
     fs.writeFileSync(CA, text); return console.log(`Đã đóng ${ma}.`);
   }
@@ -228,5 +255,11 @@ function cmdBaiHoc() {
 const CMD = { gui: cmdGui, tiep: cmdTiep, xong: cmdXong, ds: cmdDs, luot: cmdLuot, cananh: cmdCanAnh, viec: cmdViec, goi: cmdGoi, tiendo: cmdTienDo, baihoc: cmdBaiHoc };
 const c = pos[0];
 if (!c || c === "giup" || c === "help" || opt.help) console.log(HELP);
-else if (CMD[c]) CMD[c]();
+else if (CMD[c]) {
+  // lệnh ghi sổ chạy dưới khóa; lệnh chỉ đọc (ds, luot xem, cananh ds, viec ds, tiep…) không cần
+  const reads = c === "ds" || (c === "luot" && (pos[1] || "xem") === "xem") || ((c === "cananh" || c === "viec") && (pos[1] || "ds") === "ds");
+  const writes = !reads && ["luot", "cananh", "viec", "goi", "tiendo", "baihoc"].includes(c);
+  if (writes) acquire();
+  try { CMD[c](); } finally { release(); }
+}
 else die(`Không có lệnh "${c}". Gõ: node tools/vp.js giup`);
