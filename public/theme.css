@@ -6,7 +6,7 @@
   --ok:#59e7d0;--bad:#ff8f8f;--codex:#7fb7ff;--claude:#62ead8;--mint:#62ead8;--amber:#ffca76;
   --mono:ui-monospace,"JetBrains Mono",monospace;
 }
-html,body{background:radial-gradient(ellipse at 35% -25%,#1a314e 0,transparent 50%),var(--bg)!important;background-attachment:fixed!important;color:var(--text);font-family:Inter,"Be Vietnam Pro",system-ui,sans-serif!important;font-size:14px;line-height:1.5}
+html,body{background:radial-gradient(ellipse at 35% -25%,#1a314e 0,transparent 50%),var(--bg)!important;background-attachment:fixed!important;color:var(--text);font-family:Inter,"Be Vietnam Pro",system-ui,sans-serif!important;font-size:16px;line-height:1.55}
 *{text-transform:none!important;letter-spacing:normal!important}
 .mono,[class*="mono"],b,td,th{font-variant-numeric:tabular-nums}
 .head,.top,header{background:var(--panel)!important;border-bottom:1px solid var(--line)!important}

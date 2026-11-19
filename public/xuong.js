@@ -21,6 +21,12 @@ const ROOMS = [
   { id: "dev", label: "PHÒNG HỌP CHUNG", x: 950, y: 270, w: 630, h: 250, cls: "dev" },
   { id: "shop", label: "XƯỞNG PROTOTYPE · CNC · IN 3D", x: 20, y: 550, w: 1560, h: 330 },
 ];
+// Cửa tự động của từng phòng (kiểu cửa trượt đôi): x = tâm cửa, y = vị trí tường, w = bề rộng. Người đi qua thì cửa mở, đi khỏi thì cửa đóng.
+const DOORS = {
+  ceo: { x: 240, y: 230 }, manager: { x: 440, y: 230 }, coord: { x: 790, y: 230 }, g1: { x: 1120, y: 230 },
+  claude: { x: 250, y: 270 }, lounge: { x: 840, y: 270 }, dev: { x: 1005, y: 270 }, shop: { x: PL, y: 550 },
+};
+const DOOR_W = 50;
 const HOME = { ceo: [150, 135] };
 const FREE = {
   manager: [[370, 135], [510, 135]],
@@ -69,7 +75,7 @@ const roomOf = (x, y) => (ROOMS.find((r) => x >= r.x && x <= r.x + r.w && y >= r
 
 const svg = $("office");
 machineDefs(svg);
-const floorG = E("g", {}, svg), roomsG = E("g", {}, svg), machG = E("g", {}, svg), deskG = E("g", {}, svg), linksG = E("g", {}, svg), agentsG = E("g", {}, svg), msgsG = E("g", {}, svg);
+const floorG = E("g", {}, svg), roomsG = E("g", {}, svg), machG = E("g", {}, svg), deskG = E("g", {}, svg), doorG = E("g", {}, svg), linksG = E("g", {}, svg), agentsG = E("g", {}, svg), msgsG = E("g", {}, svg);
 
 // sàn + hành lang có mũi tên chạy
 E("rect", { class: "floor", x: 0, y: 0, width: W, height: H, rx: 12 }, floorG);
@@ -111,6 +117,42 @@ E("rect", { x: 1476, y: 348, width: 38, height: 18, rx: 2, fill: "#62ead8", opac
 const devHolderTxt = E("text", { x: 1495, y: 321, "text-anchor": "middle", fill: "#edf5ff", "font-size": 11, "font-weight": 600 }, machG);
 const devPkgTxt = E("text", { x: 1495, y: 335, "text-anchor": "middle", fill: "#a1b1c8", "font-size": 10 }, machG);
 const rackG = E("g", {}, roomsG), queueG = E("g", {}, roomsG);
+
+// cửa trượt đôi: khe tường + hai cánh thép + đèn báo (đỏ = đóng, xanh = mở)
+const doors = Object.entries(DOORS).map(([room, d]) => {
+  const g = E("g", { transform: `translate(${d.x},${d.y})` }, doorG), h = DOOR_W / 2;
+  E("rect", { x: -h - 4, y: -5, width: DOOR_W + 8, height: 10, rx: 2, fill: "#0a1220" }, g);            // khe tường che nét viền phòng
+  E("rect", { x: -h, y: -2, width: DOOR_W, height: 4, fill: "#030710" }, g);                            // lối đi tối khi cửa mở
+  const L = E("rect", { x: -h, y: -3.5, width: h, height: 7, rx: 1.5, fill: "#6f87a6", stroke: "#a9bdd6", "stroke-width": .8 }, g);
+  const R = E("rect", { x: 0, y: -3.5, width: h, height: 7, rx: 1.5, fill: "#6f87a6", stroke: "#a9bdd6", "stroke-width": .8 }, g);
+  E("path", { d: `M${-h - 4} -6V6M${h + 4} -6V6`, stroke: "#ffca76", "stroke-width": 3 }, g);          // trụ khung cửa màu cảnh báo
+  const led = E("circle", { cx: 0, cy: -9, r: 2.6, fill: "#ff8f8f" }, g);
+  return { room, d, L, R, led, open: 0 };
+});
+function stepDoors(dt) {
+  const figsNow = Object.values(figs).filter((f) => !f.hidden);
+  for (const dr of doors) {
+    let want = 0;
+    for (const f of figsNow) {
+      const dist = Math.hypot(f.pos[0] - dr.d.x, f.pos[1] - dr.d.y);
+      if (dist < 30 && Math.abs(f.pos[1] - dr.d.y) <= 10) { want = 1; break; } // đang ở đúng trong khung cửa (người đi ngang hành lang không tính)
+      // Chỉ mở khi chắc chắn: đích đến thật sự nằm trong phòng này (đang vào) hoặc người đang ở trong phòng và đi ra ngoài (đích ở nơi khác).
+      const here = roomOf(f.pos[0], f.pos[1]), goalRoom = f.goal ? roomOf(f.goal[0], f.goal[1]) : null;
+      const entering = goalRoom === dr.room && here !== dr.room, leaving = here === dr.room && goalRoom !== dr.room;
+      if (!(entering || leaving) || !f.wp.length || dist > (entering ? 62 : 48)) continue;
+      let a = f.pos;                                                         // và đường đi phía trước thật sự xuyên qua cửa này
+      for (const b of f.wp) {
+        if (Math.abs(a[0] - dr.d.x) < 2 && Math.abs(b[0] - dr.d.x) < 2 && Math.min(a[1], b[1]) - 4 <= dr.d.y && Math.max(a[1], b[1]) + 4 >= dr.d.y) { want = 1; break; }
+        a = b;
+      }
+      if (want) break;
+    }
+    dr.open = Motion.paused ? want : dr.open + Math.sign(want - dr.open) * Math.min(Math.abs(want - dr.open), dt / 320);
+    const sl = (DOOR_W / 2 - 2) * dr.open;
+    dr.L.setAttribute("transform", `translate(${-sl} 0)`); dr.R.setAttribute("transform", `translate(${sl} 0)`);
+    dr.led.setAttribute("fill", dr.open > .05 ? "#62ead8" : "#ff8f8f");
+  }
+}
 
 // bàn làm việc
 const desks = {};
@@ -183,6 +225,8 @@ function chain(q) { // từ q ra điểm hành lang của nó (không gồm q)
   if (y >= 550) return near(y, AISLE) || y > AISLE ? [[x, AISLE], [PL, AISLE], [PL, CORR_B]] : [[x, AISLE], [PL, AISLE], [PL, CORR_B]];
   if (y >= 520) return [[PL, CORR_B]];
   if (y > CORR_A + 4 && near(x, CH)) return [[CH, CORR_A]];
+  const d = DOORS[roomOf(x, y)];
+  if (d) return [[d.x, y], [d.x, CORR_A]];            // ra khỏi phòng bằng cửa, không xuyên tường
   return [[x, CORR_A]];
 }
 function route(p, t) {
@@ -326,6 +370,7 @@ let prev = 0;
 function animate(now) {
   const dt = prev ? Math.min(now - prev, 100) : 0; prev = now;
   for (const f of Object.values(figs)) stepFig(f, now, dt);
+  stepDoors(dt);
   runMeeting(now);
   if (!Motion.paused && meet.state === "idle") greet(now);
   requestAnimationFrame(animate);

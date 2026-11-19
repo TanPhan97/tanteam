@@ -72,6 +72,50 @@
     const r = .8 + Math.random() * 1.6;
     S("circle", { class: "rise", cx: Math.random() * 1920, cy: 1080 + Math.random() * 40, r, fill: k % 5 ? MINT : AMB, style: `--t:${16 + Math.random() * 22}s;animation-delay:-${(Math.random() * 34).toFixed(1)}s` }, svg);
   }
+
+  // ===== lớp cơ khí đậm: lưới bản vẽ, thép phay xước, sọc cảnh báo, bu lông, xích tải, xi lanh, kích thước dung sai =====
+  const steel = S("pattern", { id: "bgBrush", width: 6, height: 6, patternUnits: "userSpaceOnUse" }, d);
+  S("path", { d: "M0 1H6M0 4H6", stroke: "#9fb4d0", "stroke-width": .5, opacity: .5 }, steel);
+  S("rect", { width: 1920, height: 1080, fill: "url(#bgBrush)", opacity: .05 }, svg);
+  const grid = S("pattern", { id: "bgGrid", width: 160, height: 160, patternUnits: "userSpaceOnUse" }, d);
+  S("path", { d: "M160 0H0V160", fill: "none", stroke: "#6aa8ff", "stroke-width": 1, opacity: .45 }, grid);
+  S("path", { d: "M40 0V160M80 0V160M120 0V160M0 40H160M0 80H160M0 120H160", fill: "none", stroke: "#6aa8ff", "stroke-width": .4, opacity: .35 }, grid);
+  S("rect", { width: 1920, height: 1080, fill: "url(#bgGrid)", mask: "url(#bgMask)", opacity: .35 }, svg);
+  // sọc vàng-đen cảnh báo ở mép trên và dưới
+  const hz = S("pattern", { id: "bgHaz", width: 28, height: 28, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, d);
+  S("rect", { width: 14, height: 28, fill: "#ffca76" }, hz); S("rect", { x: 14, width: 14, height: 28, fill: "#0a0f18" }, hz);
+  S("rect", { x: 0, y: 0, width: 1920, height: 10, fill: "url(#bgHaz)", opacity: .42 }, svg);
+  S("rect", { x: 0, y: 1070, width: 1920, height: 10, fill: "url(#bgHaz)", opacity: .42 }, svg);
+  // bu lông lục giác ở bốn góc và giữa các cạnh
+  function bolt(x, y, r) {
+    const g = S("g", { transform: `translate(${x},${y})`, opacity: .7 }, svg);
+    S("circle", { r: r + 5, fill: "#0e1726", stroke: "#52698a", "stroke-width": 1.2 }, g);
+    S("path", { d: Array.from({ length: 6 }, (_, i) => { const a = i * Math.PI / 3; return (i ? "L" : "M") + (Math.cos(a) * r).toFixed(1) + " " + (Math.sin(a) * r).toFixed(1); }).join("") + "Z", fill: "#1b2a41", stroke: "#8aa3c4", "stroke-width": 1.2 }, g);
+    S("circle", { r: r * .38, fill: "#0a1220", stroke: "#8aa3c4", "stroke-width": .8 }, g);
+  }
+  [[58, 58], [1862, 58], [58, 1022], [1862, 1022], [960, 40], [960, 1040], [40, 540], [1880, 540]].forEach(([x, y]) => bolt(x, y, 11));
+  // xích tải chạy dọc mép dưới
+  S("rect", { x: 0, y: 1040, width: 1920, height: 18, fill: "#0b1322", opacity: .75 }, svg);
+  S("path", { d: "M0 1049H1920", stroke: "#8aa3c4", "stroke-width": 12, "stroke-dasharray": "14 8", opacity: .38, class: "trail", style: "--t:1.2s;animation-name:bgchain" }, svg);
+  S("path", { d: "M0 1041H1920M0 1057H1920", stroke: "#52698a", "stroke-width": 1.4, opacity: .8 }, svg);
+  // hai xi lanh thủy lực, ty đẩy lên xuống
+  function piston(x, y, dur, delay) {
+    const g = S("g", { transform: `translate(${x},${y})`, opacity: .6 }, svg);
+    S("rect", { x: -22, y: 0, width: 44, height: 150, rx: 6, fill: "#0e1726", stroke: "#52698a", "stroke-width": 1.6 }, g);
+    for (let k = 1; k < 5; k++) S("path", { d: `M-22 ${k * 30}H22`, stroke: "#31476a", "stroke-width": 1 }, g);
+    const rod = S("g", { class: "pist", style: `--t:${dur}s;animation-delay:-${delay}s` }, g);
+    S("rect", { x: -7, y: -110, width: 14, height: 130, fill: "#a9bdd6", opacity: .65 }, rod);
+    S("rect", { x: -26, y: -128, width: 52, height: 18, rx: 4, fill: "#1b2a41", stroke: "#ffca76", "stroke-width": 1.6 }, rod);
+  }
+  piston(1500, 880, 5, 0); piston(1570, 880, 5, 2.5);
+  // kích thước và dung sai kiểu bản vẽ kỹ thuật
+  function dim(x1, y1, x2, y2, txt) {
+    const g = S("g", { stroke: AMB, "stroke-width": 1, fill: "none", opacity: .5 }, svg), vert = x1 === x2;
+    S("path", { d: `M${x1} ${y1}L${x2} ${y2}` }, g);
+    S("path", { d: vert ? `M${x1 - 8} ${y1}H${x1 + 8}M${x2 - 8} ${y2}H${x2 + 8}` : `M${x1} ${y1 - 8}V${y1 + 8}M${x2} ${y2 - 8}V${y2 + 8}` }, g);
+    const t = S("text", { x: vert ? x1 - 14 : (x1 + x2) / 2, y: vert ? (y1 + y2) / 2 : y1 - 12, "text-anchor": vert ? "end" : "middle", fill: AMB, stroke: "none", "font-size": 15, "font-family": "ui-monospace,monospace" }, g); t.textContent = txt;
+  }
+  dim(300, 120, 700, 120, "Ø 25 H7 ±0.02"); dim(1240, 90, 1640, 90, "120.00 ±0.05"); dim(70, 300, 70, 620, "R 8 · Ra 1.6");
   // tối viền cho nội dung nổi bật
   const vig = S("radialGradient", { id: "bgVig", cx: "50%", cy: "50%", r: "75%" }, d);
   S("stop", { offset: .5, "stop-color": "#060b16", "stop-opacity": 0 }, vig); S("stop", { offset: 1, "stop-color": "#060b16", "stop-opacity": .7 }, vig);
