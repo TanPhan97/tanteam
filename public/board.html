@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <script src="i18n.js"></script>
+<script src="shell.js" defer></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bảng điều hành</title>
@@ -125,7 +126,7 @@ tr.sel td{background:var(--panel2)}
 .gnow{position:absolute;top:0;bottom:0;width:1px;background:var(--gold);opacity:.7}
 .queue{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
 .qrow{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:14px;padding:3px 0}
-#gantt>.qrow:only-child{display:block;color:var(--mute)}
+#gantt>.qrow{display:block;color:var(--mute);padding:8px 0}
 .qrow b{font-family:var(--mono);color:var(--gold)}
 .qrow small{display:block;color:var(--mute2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub-h{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute2);font-weight:700;margin:2px 0 6px}
@@ -209,7 +210,7 @@ tr.sel td{background:var(--panel2)}
 </head>
 <body>
 <div id="bg" class="bg-sub" aria-hidden="true"><div class="glow a"></div><div class="glow b"></div><div class="glow c"></div></div>
-<header class="vp-bar"><a class="vp-brand" href="./"><span class="vp-logo">◈</span><div><strong id="vp-ttl">XƯỞNG R&amp;D VULCAN</strong><small id="vp-sub">THIẾT KẾ CƠ KHÍ · QUẢN LÝ DỰ ÁN · DỮ LIỆU</small></div></a><nav class="vp-nav" aria-label="Điều hướng"><a href="./" target="_top">◈ Xưởng</a><a href="board.html" target="_top" aria-current="page">Bảng điều hành</a><a href="congviec.html" target="_top">Công việc</a><a href="tongquan.html" target="_top">Tổng quan</a><a href="hopthu.html" target="_top">Hòm thư</a><a href="noiquy.html" target="_top">Nội quy</a><a href="hieusuat.html" target="_top">Đánh giá</a><a href="tinnhan.html" target="_top">Tin nhắn</a></nav><span class="vp-live"><i></i><span id="vp-clock">TRỰC TIẾP</span><span class="lang" role="group" aria-label="Language"><button type="button" data-set-lang="vi">VI</button><button type="button" data-set-lang="en">EN</button></span></span></header>
+<header class="vp-bar"><a class="vp-brand" href="./"><span class="vp-logo">◈</span><div><strong id="vp-ttl">XƯỞNG R&amp;D VULCAN</strong><small id="vp-sub">THIẾT KẾ CƠ KHÍ · QUẢN LÝ DỰ ÁN · DỮ LIỆU</small></div></a><nav class="vp-nav" aria-label="Điều hướng"><a href="./" target="_top">◈ Xưởng</a><span class="sep" aria-hidden="true"></span><a href="tongquan.html" target="_top">Tổng quan</a><a href="congviec.html" target="_top">Công việc</a><a href="board.html" target="_top" aria-current="page">Bảng điều hành</a><span class="sep" aria-hidden="true"></span><a href="hopthu.html" target="_top">Hòm thư<b class="bdg" data-badge="ht" hidden></b></a><a href="tinnhan.html" target="_top">Tin nhắn</a><span class="sep" aria-hidden="true"></span><a href="noiquy.html" target="_top">Nội quy</a><a href="hieusuat.html" target="_top">Đánh giá</a></nav><span class="vp-live"><i></i><span id="vp-clock">TRỰC TIẾP</span><span class="lang" role="group" aria-label="Language"><button type="button" data-set-lang="vi">VI</button><button type="button" data-set-lang="en">EN</button></span></span></header>
 
 <header class="head">
   <div class="brand"><div class="logo">V</div><div><b id="ttl">Bảng điều hành</b><small>Xưởng R&D · trạm SolidWorks · việc ưu tiên</small></div></div>
@@ -517,8 +518,9 @@ let lastMsgAt = 0;
 const es = new EventSource("events");
 es.onmessage = (m) => { lastMsgAt = Date.now(); $("live").className = "live"; try { render(JSON.parse(m.data)); } catch (e) { console.error(e); } };
 es.onerror = () => { $("live").className = "live off"; };
+setInterval(() => { if (!document.hidden) $("clock").textContent = new Date().toLocaleTimeString("vi-VN", { hour12: false }); }, 1000);
 setInterval(async () => {
-  if (Date.now() - lastMsgAt < 3000) return;
+  if (document.hidden || es.readyState === 1) return;
   try { const r = await fetch("state", { cache: "no-store" }); if (r.ok) { $("live").className = "live"; render(await r.json()); } } catch { $("live").className = "live off"; }
 }, 1000);
 </script>

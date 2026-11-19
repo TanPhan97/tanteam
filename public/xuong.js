@@ -148,9 +148,12 @@ function stepDoors(dt) {
       if (want) break;
     }
     dr.open = Motion.paused ? want : dr.open + Math.sign(want - dr.open) * Math.min(Math.abs(want - dr.open), dt / 320);
-    const sl = (DOOR_W / 2 - 2) * dr.open;
-    dr.L.setAttribute("transform", `translate(${-sl} 0)`); dr.R.setAttribute("transform", `translate(${sl} 0)`);
-    dr.led.setAttribute("fill", dr.open > .05 ? "#62ead8" : "#ff8f8f");
+    const o = Math.round(dr.open * 200);                                       // chỉ ghi DOM khi cánh cửa thật sự nhúc nhích
+    if (o !== dr.shown) {
+      dr.shown = o; const sl = (DOOR_W / 2 - 2) * dr.open;
+      dr.L.setAttribute("transform", `translate(${-sl} 0)`); dr.R.setAttribute("transform", `translate(${sl} 0)`);
+      dr.led.setAttribute("fill", dr.open > .05 ? "#62ead8" : "#ff8f8f");
+    }
   }
 }
 
@@ -340,9 +343,10 @@ function stepFig(f, now, dt) {
   if (f.a.virtual && f.mode === "home" && !f.wp.length && !f.meetSeat && now >= f.nextAt && (!f.speech || now >= f.speech.until)) { say(f, pick(f.a.homeSay), 3400); f.nextAt = now + rnd(14000, 30000); }
   f.doing = f.meetSeat ? "Đang giao - nhận việc ở phòng họp" : f.wp.length ? "Đang di chuyển" : f.spot ? f.spot.say : "Tại vị trí làm việc";
   const scr = desks[f.a.key];
-  if (f.a.virtual && f.a.desk && scr) scr.setAttribute("fill", !f.wp.length && atHome ? "#62ead8" : "#0b1322");
-  f.g.setAttribute("transform", `translate(${f.pos[0].toFixed(1)} ${f.pos[1].toFixed(1)})`);
-  f.g.classList.toggle("walk", f.wp.length > 0 && !Motion.paused);
+  if (f.a.virtual && f.a.desk && scr) { const fill = !f.wp.length && atHome ? "#62ead8" : "#0b1322"; if (fill !== f.scrFill) { f.scrFill = fill; scr.setAttribute("fill", fill); } }
+  const tf = `translate(${f.pos[0].toFixed(1)} ${f.pos[1].toFixed(1)})`;          // chỉ chạm DOM khi thật sự đổi, đỡ vẽ lại cả bản đồ
+  if (tf !== f.tf) { f.tf = tf; f.g.setAttribute("transform", tf); }
+  const walking = f.wp.length > 0 && !Motion.paused; if (walking !== f.walking) { f.walking = walking; f.g.classList.toggle("walk", walking); }
   // bong bóng: lời nói tạm thời đè lên nhãn trạng thái
   const sp = f.speech && now >= f.speech.from && now < f.speech.until ? f.speech : null;
   const txt = sp ? sp.text : f.label || "", col = sp ? "#edf5ff" : f.labelCol || "#a1b1c8";
@@ -391,7 +395,6 @@ function animate(now) {
   for (const f of Object.values(figs)) stepFig(f, now, dt);
   stepDoors(dt);
   runHuddles(now);
-  if (!Motion.paused && !huddles.length) greet(now);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
@@ -412,26 +415,8 @@ function flyMsg(e) {
 
 // ===== vẽ theo dữ liệu =====
 function metric(label, value, c) { const m = html("div", "metric"); const b = html("b", "", value); if (c) b.style.setProperty("--c", c); m.append(b, html("span", "", label)); return m; }
-function render(s) {
-  last = s;
-  const agents = s.agents;
-  const act = agents.filter((a) => a.platform !== "human" && a.status === "active").length;
-  const wait = agents.filter((a) => a.flag).length;
-  const idle = agents.filter((a) => a.status === "idle" && !a.flag).length;
-  const holder = agents.find((a) => a.key === s.dev.holder);
-  const done = s.tasks.filter((t) => t.state === "done").length;
-  document.title = s.title; $("ttl").textContent = s.title.toUpperCase();
-  if (s.subtitle) $("sub").textContent = s.subtitle.toUpperCase();
-  try { localStorage.setItem("vp-title", s.title.toUpperCase()); if (s.subtitle) localStorage.setItem("vp-sub", s.subtitle.toUpperCase()); } catch {}
-  $("clock").textContent = "TRỰC TIẾP · " + new Date(s.now).toLocaleTimeString("vi-VN");
-  const M = $("metrics"); M.textContent = "";
-  M.append(metric("Đang làm", act, "#62ead8"), metric("Chờ / chặn", wait, wait ? "#ffca76" : null), metric("Rảnh", idle),
-    metric("Lượt SolidWorks", holder ? first(holder.name) : (s.dev.holderLabel ? "đang giữ" : "trống"), holder || s.dev.holderLabel ? "#ffca76" : null),
-    metric("Việc ưu tiên", `${done}/${s.tasks.length}`));
-  if (s.sys.cFreeGB != null) M.append(metric("Ổ đĩa trống", s.sys.cFreeGB.toString().replace(".", ",") + " GB"));
-  devGlow.setAttribute("opacity", s.dev.holder || s.dev.holderLabel ? .07 : 0);
-  devHolderTxt.textContent = (holder ? `${first(holder.name)} · ${ago(s.dev.holderSince)}` : (s.dev.holderLabel ? s.dev.holderLabel : `Trống · ${ago(s.dev.idleSince)}`)).slice(0, 24);
-  devPkgTxt.textContent = s.dev.package || "";
+let lastMSig = "", lastRSig = "", offline = false;
+function drawRack(s) {
   rackG.textContent = "";
   s.sys.containers.slice(0, 4).forEach((c, i) => {
     const x = 1030 + i * 74, y = 482;
@@ -445,6 +430,30 @@ function render(s) {
   (s.dev.queue || []).slice(0, 3).forEach((q, i) => {
     E("text", { x: 1430, y: 452 + i * 12, fill: "#a1b1c8", "font-size": 9.5 }, queueG).textContent = `${q.n}. ${q.who} · ${q.what}`.slice(0, 26);
   });
+}
+function render(s) {
+  last = s;
+  const agents = s.agents;
+  const act = agents.filter((a) => a.platform !== "human" && a.status === "active").length;
+  const wait = agents.filter((a) => a.flag).length;
+  const idle = agents.filter((a) => a.status === "idle" && !a.flag).length;
+  const holder = agents.find((a) => a.key === s.dev.holder);
+  const done = s.tasks.filter((t) => t.state === "done").length;
+  document.title = s.title; $("ttl").textContent = s.title.toUpperCase();
+  if (s.subtitle) $("sub").textContent = s.subtitle.toUpperCase();
+  try { localStorage.setItem("vp-title", s.title.toUpperCase()); if (s.subtitle) localStorage.setItem("vp-sub", s.subtitle.toUpperCase()); } catch {}
+  offline = false;
+  const M = $("metrics"), mSig = JSON.stringify([act, wait, idle, holder && holder.name, s.dev.holderLabel, done, s.tasks.length, s.sys.cFreeGB]);
+  if (mSig !== lastMSig) { lastMSig = mSig; M.textContent = "";
+  M.append(metric("Đang làm", act, "#62ead8"), metric("Chờ / chặn", wait, wait ? "#ffca76" : null), metric("Rảnh", idle),
+    metric("Lượt SolidWorks", holder ? first(holder.name) : (s.dev.holderLabel ? "đang giữ" : "trống"), holder || s.dev.holderLabel ? "#ffca76" : null),
+    metric("Việc ưu tiên", `${done}/${s.tasks.length}`));
+  if (s.sys.cFreeGB != null) M.append(metric("Ổ đĩa trống", s.sys.cFreeGB.toString().replace(".", ",") + " GB")); }
+  devGlow.setAttribute("opacity", s.dev.holder || s.dev.holderLabel ? .07 : 0);
+  devHolderTxt.textContent = (holder ? `${first(holder.name)} · ${ago(s.dev.holderSince)}` : (s.dev.holderLabel ? s.dev.holderLabel : `Trống · ${ago(s.dev.idleSince)}`)).slice(0, 24);
+  devPkgTxt.textContent = s.dev.package || "";
+  const rSig = JSON.stringify([s.sys.containers, s.dev.queue]);
+  if (rSig !== lastRSig) { lastRSig = rSig; drawRack(s); }
   const keys = new Set(agents.map((a) => a.key));
   for (const k of Object.keys(figs)) if (!keys.has(k) && !figs[k].a.virtual) { figs[k].g.remove(); delete figs[k]; }
   // phiên thật cùng vai với nhân sự xưởng thì thế chỗ nhân sự đó
@@ -488,7 +497,10 @@ function crewRow(c, a, dot, title, sub) {
   b.append(html("i")); const t = html("div"); t.append(html("b", "", title), html("small", "", sub)); b.append(t);
   b.onclick = () => select(a.key); c.appendChild(b);
 }
+let crewSig = "", restSig = "";
 function renderCrew(s) {
+  const sg = JSON.stringify([s.agents.map((x) => [x.key, x.name, x.flag, x.status, x.role]), CREW.map((v) => (figs[v.key] ? [v.key, figs[v.key].hidden, figs[v.key].doing] : 0)), selected]);
+  if (sg === crewSig) return; crewSig = sg;                                   // không đổi thì không dựng lại danh sách
   const c = $("crew"); c.textContent = "";
   const list = s.agents.filter((a) => a.platform !== "human");
   const staff = CREW.filter((v) => figs[v.key] && !figs[v.key].hidden);
@@ -502,6 +514,7 @@ function renderSide(s) {
   const al = $("alerts"); al.textContent = "";
   if (!s.alerts.length) al.appendChild(html("div", "none", "Không có cảnh báo."));
   for (const a of s.alerts) al.appendChild(html("div", "alert " + (a.level === "warn" ? "warn" : ""), a.text));
+  $("p-alerts").classList.toggle("quiet", !s.alerts.length);
   const d = $("detail"), a = s.agents.find((x) => x.key === selected) || (figs[selected] && figs[selected].a.virtual ? figs[selected].a : null);
   if (a) {
     let box = d.querySelector(".card-body");
@@ -510,8 +523,8 @@ function renderSide(s) {
     const who = html("div", "who"); who.append(html("b", "", a.name), html("span", "badge", a.virtual ? "Nhân sự xưởng" : a.platform === "claude" ? "Claude" : "Người")); box.appendChild(who);
     if (a.virtual) {
       box.appendChild(html("div", "", `Đang: ${(figs[a.key] && figs[a.key].doing) || "Tại vị trí làm việc"}`));
-      box.appendChild(html("p", "", "Nhân sự mô phỏng của xưởng: tự đi tuần theo vị trí công việc và họp giao ban ở phòng họp chung. Khi có phiên Claude Code cùng vai, phiên đó thế chỗ."));
-      $("sel-time").textContent = ""; window.ChatBox && ChatBox.mount(d, { platform: "human" }); renderRest(s); return;
+      box.appendChild(html("p", "", "Nhân sự xưởng: đứng tại phòng, có tin giao việc thì vào phòng họp."));
+      $("sel-time").textContent = ""; window.ChatBox && ChatBox.mount(d, a); renderRest(s); return;
     }
     const st = { active: "đang làm", idle: "đang rảnh / chờ", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status] || a.status;
     box.appendChild(html("div", "", `Vai trò: ${a.role}`));
@@ -524,6 +537,8 @@ function renderSide(s) {
   renderRest(s);
 }
 function renderRest(s) {
+  const sg = JSON.stringify([s.tasks, s.events.slice(-60).map((e) => [e.t, e.from, e.to, e.title, e.kind]), s.dev.lastRows.map((r) => [r.t, r.state, r.agent, r.who]), s.agents.map((x) => [x.key, x.name])]);
+  if (sg === restSig) return; restSig = sg;
   const tk = $("tasks"); tk.textContent = "";
   for (const t of s.tasks) {
     const row = html("div", "task " + t.state);
@@ -550,17 +565,26 @@ function renderRest(s) {
 }
 
 // ===== nối dữ liệu =====
-let lastMsgAt = 0;
+// Máy chủ chỉ đẩy khi dữ liệu đổi; tab đang ẩn thì chỉ giữ gói mới nhất, quay lại mới vẽ (không tốn máy khi không nhìn).
+let es = null, pendingRaw = null;
+const accept = (raw) => { if (document.hidden) { pendingRaw = raw; return; } try { render(typeof raw === "string" ? JSON.parse(raw) : raw); } catch (e) { console.error(e); } };
 function connect() {
-  const es = new EventSource("events");
-  es.onmessage = (m) => { lastMsgAt = Date.now(); $("live").className = "live"; try { render(JSON.parse(m.data)); } catch (e) { console.error(e); } };
+  es = new EventSource("events");
+  es.onmessage = (m) => { $("live").className = "live"; accept(m.data); };
   es.onerror = () => { $("live").className = "live off"; };
 }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && pendingRaw) { const r = pendingRaw; pendingRaw = null; accept(r); } });
+// đồng hồ chạy ở máy khách (không phụ thuộc gói dữ liệu)
+setInterval(() => { if (document.hidden) return; $("clock").textContent = offline ? "MẤT KẾT NỐI, ĐANG NỐI LẠI…" : "TRỰC TIẾP · " + new Date().toLocaleTimeString("vi-VN"); }, 1000);
+// dự phòng: mất đường đẩy thì hỏi trực tiếp mỗi giây
 setInterval(async () => {
-  if (Date.now() - lastMsgAt < 3000) return;
-  try { const r = await fetch("state", { cache: "no-store" }); if (r.ok) { $("live").className = "live"; render(await r.json()); } }
-  catch { $("live").className = "live off"; $("clock").textContent = "MẤT KẾT NỐI, ĐANG NỐI LẠI…"; }
+  if (document.hidden || (es && es.readyState === 1)) return;
+  try { const r = await fetch("state", { cache: "no-store" }); if (r.ok) { $("live").className = "live"; accept(await r.json()); } }
+  catch { $("live").className = "live off"; offline = true; }
 }, 1000);
+document.querySelectorAll(".tabbar [data-tab]").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabbar [data-tab]").forEach((x) => { const on = x === b; x.setAttribute("aria-selected", String(on)); $(x.dataset.tab).hidden = !on; });
+}));
 for (const v of CREW) { const f = makeFig(Object.assign({ platform: "virtual", virtual: true, status: "virtual", flag: "", sub: 0 }, v), v.home); f.g.dataset.status = "virtual"; }
 try { const ct = localStorage.getItem("vp-title"), cs = localStorage.getItem("vp-sub"); if (ct) $("ttl").textContent = ct; if (cs) $("sub").textContent = cs; } catch {}
 applyView();

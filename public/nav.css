@@ -22,3 +22,6 @@ body{background:transparent!important;box-sizing:border-box;padding-top:68px}
 .lang button{border:0!important;border-radius:0!important;background:transparent;color:#a1b1c8;padding:6px 11px;font:600 12px ui-monospace,monospace;cursor:pointer;letter-spacing:.04em}
 .lang button:hover{color:#edf5ff}
 html[data-lang=vi] .lang [data-set-lang=vi],html[data-lang=en] .lang [data-set-lang=en]{background:#153139;color:#62ead8}
+.vp-nav .sep,nav .sep{width:1px;align-self:stretch;margin:7px 8px;background:#24344c;flex:none}
+.bdg{display:inline-block;min-width:18px;padding:0 6px;margin-left:7px;border-radius:999px;background:#ffca76;color:#1a1204;font:700 12px/18px ui-monospace,monospace;text-align:center}
+.bdg[hidden]{display:none}

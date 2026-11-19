@@ -19,3 +19,8 @@
 @keyframes bgchain{from{stroke-dashoffset:0}to{stroke-dashoffset:-22}}
 .pist{animation:bgpist var(--t,5s) ease-in-out infinite alternate}
 @keyframes bgpist{from{transform:translateY(0)}to{transform:translateY(-70px)}}
+/* Chế độ nhẹ: tắt hiệu ứng nền chạy liên tục để máy yếu vẫn mượt */
+html.lite .gear,html.lite .rise,html.lite .trail,html.lite .pist{animation:none!important}
+html.lite .glow{display:none}
+html.lite .vp-bar::after,html.lite .bar::after{animation:none!important}
+#bg{contain:strict;transform:translateZ(0)}

@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <script src="i18n.js"></script>
+<script src="shell.js" defer></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Xưởng R&D</title>
@@ -15,9 +16,7 @@
 <div id="bg" aria-hidden="true"><div class="glow a"></div><div class="glow b"></div><div class="glow c"></div></div>
 <header class="bar">
   <div class="brand"><span class="logo">◈</span><div><strong id="ttl">XƯỞNG R&amp;D</strong><small id="sub">TRẠM ĐIỀU PHỐI</small></div></div>
-  <nav aria-label="Điều hướng">
-    <a href="./" aria-current="page">◈ Xưởng</a><a href="board.html">Bảng điều hành</a><a href="congviec.html">Công việc</a><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="noiquy.html">Nội quy</a><a href="hieusuat.html">Đánh giá</a><a href="tinnhan.html">Tin nhắn</a>
-  </nav>
+  <nav aria-label="Điều hướng"><a href="./" aria-current="page">◈ Xưởng</a><span class="sep" aria-hidden="true"></span><a href="tongquan.html">Tổng quan</a><a href="congviec.html">Công việc</a><a href="board.html">Bảng điều hành</a><span class="sep" aria-hidden="true"></span><a href="hopthu.html">Hòm thư<b class="bdg" data-badge="ht" hidden></b></a><a href="tinnhan.html">Tin nhắn</a><span class="sep" aria-hidden="true"></span><a href="noiquy.html">Nội quy</a><a href="hieusuat.html">Đánh giá</a></nav>
   <span class="live" id="live"><i></i><span id="clock">ĐANG NỐI…</span><span class="lang" role="group" aria-label="Language"><button type="button" data-set-lang="vi">VI</button><button type="button" data-set-lang="en">EN</button></span></span>
 </header>
 <div class="app">
@@ -29,7 +28,7 @@
     <div class="stage">
       <svg id="office" viewBox="0 0 1600 900" tabindex="0" role="group" aria-label="Bản đồ tương tác của xưởng. Kéo để di chuyển, cuộn để thu phóng."></svg>
       <div class="ctl" role="group" aria-label="Điều khiển góc nhìn">
-        <button id="zo" type="button" aria-label="Thu nhỏ">−</button><output id="zv">100%</output><button id="zi" type="button" aria-label="Phóng to">+</button><button id="zr" type="button">Về giữa</button><button id="mv" type="button" aria-pressed="false" title="Dừng chuyển động">Ⅱ</button>
+        <button id="zo" type="button" aria-label="Thu nhỏ">−</button><output id="zv">100%</output><button id="zi" type="button" aria-label="Phóng to">+</button><button id="zr" type="button">Về giữa</button><button id="mv" type="button" aria-pressed="false" title="Dừng chuyển động">Ⅱ</button><button type="button" data-lite-btn aria-pressed="false">⚡ Nhẹ</button>
       </div>
     </div>
     <div class="legend">
@@ -39,10 +38,16 @@
     </div>
   </section>
   <aside class="side" aria-label="Chi tiết">
-    <section class="panel"><h3>CẢNH BÁO</h3><div id="alerts"></div></section>
-    <section class="panel"><h3>ĐANG XEM <em id="sel-time"></em></h3><div class="detail" id="detail"><span class="none">Bấm vào một người trên bản đồ.</span></div></section>
-    <section class="panel"><h3>VIỆC ƯU TIÊN <em id="t-sum"></em></h3><div class="scroll" id="tasks"></div></section>
-    <section class="panel"><h3>DÒNG THỜI GIAN HÔM NAY</h3><div class="scroll" id="timeline"></div></section>
+    <section class="panel alerts quiet" id="p-alerts"><h3>CẢNH BÁO</h3><div id="alerts"></div></section>
+    <section class="panel p-detail"><h3>ĐANG XEM <em id="sel-time"></em></h3><div class="detail" id="detail"><span class="none">Bấm vào một người trên bản đồ, hoặc chọn trong "Đội ngũ", để xem và nhắn tin.</span></div></section>
+    <section class="panel p-tabs">
+      <div class="tabbar" role="tablist" aria-label="Công việc và dòng thời gian">
+        <button type="button" role="tab" id="tab-tasks" aria-selected="true" aria-controls="tasks" data-tab="tasks">Việc ưu tiên <em id="t-sum"></em></button>
+        <button type="button" role="tab" id="tab-timeline" aria-selected="false" aria-controls="timeline" data-tab="timeline">Dòng thời gian hôm nay</button>
+      </div>
+      <div class="scroll tabpane" id="tasks" role="tabpanel" aria-labelledby="tab-tasks"></div>
+      <div class="scroll tabpane" id="timeline" role="tabpanel" aria-labelledby="tab-timeline" hidden></div>
+    </section>
   </aside>
 </div>
 <script src="chat-ui.js"></script>

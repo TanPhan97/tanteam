@@ -479,7 +479,7 @@ function snapshot() {
   const ht = hopthuNow();
   if (ht.tong && ht.tong.nhac2) alerts.push({ level: "bad", text: `Hòm thư: ${ht.tong.nhac2} tin đã đọc lại ≥ 2 lần mà chưa xong` });
   const { weekRows, ...devOut } = dev;
-  return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: t, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
+  return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: 0, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
     turns, team, tasks: taskView, sys, events: recent.slice(-300), signals: signalsNow(), alerts, asks: ceoAsks(out, t), money: moneyOf(week, t) };
 }
 
@@ -536,7 +536,16 @@ function docsNow() {
 const clients = new Set(), perfClients = new Set();
 let perfCache = null;
 const perfNow = () => { if (!perfCache || now() - perfCache.at > 1500) perfCache = { at: now(), data: perf.compute(agents.filter((a) => !a.ceo), snapshot().agents, events, dev.weekRows || []) }; return perfCache.data; };
-setInterval(() => { if (!clients.size) return; const d = "data: " + JSON.stringify(snapshot()) + "\n\n"; for (const r of clients) r.write(d); }, 1000);
+// Chỉ đẩy khi dữ liệu thật sự đổi (bỏ qua trường "now"); không đổi thì gửi dòng giữ kết nối, tối đa 10 giây mới gửi lại trọn gói để tuổi/thời gian tươi.
+let lastSig = "", lastSendAt = 0;
+setInterval(() => {
+  if (!clients.size) return;
+  const { now: tNow, ...rest } = snapshot(), sig = JSON.stringify(rest), t = now();
+  if (sig === lastSig && t - lastSendAt < 10000) { for (const r of clients) r.write(": ka\n\n"); return; }
+  lastSig = sig; lastSendAt = t;
+  const d = `data: {"now":${tNow},${sig.slice(1)}\n\n`;
+  for (const r of clients) r.write(d);
+}, 1000);
 setInterval(() => { if (!perfClients.size) return; const d = "data: " + JSON.stringify(perfNow()) + "\n\n"; for (const r of perfClients) r.write(d); }, 2000);
 
 // Khóa xem (tùy chọn): đặt "accessKey" trong config.json thì phải nhập khóa một lần mới xem được (nên bật khi mở ra Internet).
