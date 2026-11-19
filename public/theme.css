@@ -1,0 +1,21 @@
+/* Giao diện tối kiểu KEPLER-07 dùng chung cho mọi trang (nạp sau CSS riêng của từng trang). */
+:root{
+  color-scheme:dark;
+  --bg:#080e1a;--panel:#0b1322;--panel2:#101a2b;--card:#101a2b;--line:#24344c;--line2:#31476a;
+  --text:#edf5ff;--mute:#a1b1c8;--mute2:#7f90aa;--gold:#62ead8;--warn:#ffca76;--human:#edf5ff;
+  --ok:#59e7d0;--bad:#ff8f8f;--codex:#7fb7ff;--claude:#62ead8;--mint:#62ead8;--amber:#ffca76;
+  --mono:ui-monospace,"JetBrains Mono",monospace;
+}
+html,body{background:radial-gradient(ellipse at 35% -25%,#1a314e 0,transparent 50%),var(--bg)!important;background-attachment:fixed!important;color:var(--text);font-family:Inter,"Be Vietnam Pro",system-ui,sans-serif!important;font-size:14px;line-height:1.5}
+*{text-transform:none!important;letter-spacing:normal!important}
+.mono,[class*="mono"],b,td,th{font-variant-numeric:tabular-nums}
+.head,.top,header{background:var(--panel)!important;border-bottom:1px solid var(--line)!important}
+.logo{background:#143638!important;color:var(--mint)!important;border-radius:9px!important}
+.panel,section,.card,.box{border-color:var(--line)!important;box-shadow:none}
+a{color:var(--mint)}
+.views a{color:var(--mute)!important;border-color:var(--line)!important}
+.views a:hover{color:var(--mint)!important;border-color:var(--mint)!important}
+button{color:inherit}
+input,select,textarea{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}::-webkit-scrollbar-track{background:transparent}

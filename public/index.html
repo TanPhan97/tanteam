@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<script src="i18n.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Xưởng R&D</title>
+<link rel="stylesheet" href="bg.css">
+<link rel="stylesheet" href="xuong.css">
+<link rel="stylesheet" href="theme.css">
+<style>html,body{overflow:hidden}@media (max-width:1100px){html,body{overflow:auto}}</style>
+</head>
+<body>
+<div id="bg" aria-hidden="true"><div class="glow a"></div><div class="glow b"></div><div class="glow c"></div></div>
+<header class="bar">
+  <div class="brand"><span class="logo">◈</span><div><strong id="ttl">XƯỞNG R&amp;D</strong><small id="sub">TRẠM ĐIỀU PHỐI</small></div></div>
+  <nav aria-label="Điều hướng">
+    <a href="./" aria-current="page">◈ Xưởng</a><a href="board.html">Bảng điều hành</a><a href="congviec.html">Công việc</a><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="noiquy.html">Nội quy</a><a href="hieusuat.html">Đánh giá</a><a href="tinnhan.html">Tin nhắn</a>
+  </nav>
+  <span class="live" id="live"><i></i><span id="clock">ĐANG NỐI…</span><span class="lang" role="group" aria-label="Language"><button type="button" data-set-lang="vi">VI</button><button type="button" data-set-lang="en">EN</button></span></span>
+</header>
+<div class="app">
+  <section class="map-col" aria-label="Bản đồ xưởng">
+    <div class="hud">
+      <div class="metrics" id="metrics"></div>
+      <details class="crew"><summary>Đội ngũ <span id="crew-n"></span></summary><div id="crew"></div></details>
+    </div>
+    <div class="stage">
+      <svg id="office" viewBox="0 0 1600 900" tabindex="0" role="group" aria-label="Bản đồ tương tác của xưởng. Kéo để di chuyển, cuộn để thu phóng."></svg>
+      <div class="ctl" role="group" aria-label="Điều khiển góc nhìn">
+        <button id="zo" type="button" aria-label="Thu nhỏ">−</button><output id="zv">100%</output><button id="zi" type="button" aria-label="Phóng to">+</button><button id="zr" type="button">Về giữa</button><button id="mv" type="button" aria-pressed="false" title="Dừng chuyển động">Ⅱ</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--claude)"></i>Claude</span><span><i style="background:var(--human)"></i>Đại ca</span><span><i style="background:#ffca76"></i>Nhân sự xưởng</span>
+      <span><i style="border:2px dashed var(--mint)"></i>đang làm</span><span><i style="border:2px dashed var(--amber)"></i>đang chờ</span><span><i style="border:2px solid var(--bad)"></i>bị chặn</span>
+      <span>Rảnh thì đi thăm máy và chào nhau · Kéo để di chuyển · Cuộn để thu phóng</span>
+    </div>
+  </section>
+  <aside class="side" aria-label="Chi tiết">
+    <section class="panel"><h3>CẢNH BÁO</h3><div id="alerts"></div></section>
+    <section class="panel"><h3>ĐANG XEM <em id="sel-time"></em></h3><div class="detail" id="detail"><span class="none">Bấm vào một người trên bản đồ.</span></div></section>
+    <section class="panel"><h3>VIỆC ƯU TIÊN <em id="t-sum"></em></h3><div class="scroll" id="tasks"></div></section>
+    <section class="panel"><h3>DÒNG THỜI GIAN HÔM NAY</h3><div class="scroll" id="timeline"></div></section>
+  </aside>
+</div>
+<script src="chat-ui.js"></script>
+<script src="machines.js"></script>
+<script src="bg.js"></script>
+<script src="xuong.js"></script>
+</body>
+</html>
