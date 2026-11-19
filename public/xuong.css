@@ -14,7 +14,7 @@ button:focus-visible,summary:focus-visible,svg:focus-visible,a:focus-visible{out
 .bar,.app{position:relative;z-index:1}
 
 /* thanh trên */
-.bar{flex:none;min-height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:8px 28px;gap:18px;background:rgba(11,19,34,.88);backdrop-filter:blur(8px);flex-wrap:wrap}
+.bar{flex:none;min-height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:8px 28px;gap:18px;background:rgba(11,19,34,.95);flex-wrap:wrap}
 .brand{display:flex;gap:12px;align-items:center}
 .logo{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:#143638;color:var(--mint);font-weight:800;font-size:26px}
 .brand strong{letter-spacing:.12em!important;font-size:18.5px}
@@ -34,7 +34,7 @@ nav a[aria-current=page]{background:#153139;color:var(--mint);border-color:#2650
 .map-col{display:flex;flex-direction:column;min-height:0;min-width:0}
 .hud{flex:none;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;position:relative;z-index:5}
 .metrics{display:flex;gap:10px;flex-wrap:wrap}
-.metric{display:flex;align-items:center;gap:11px;padding:9px 16px;border:1px solid var(--line);background:rgba(16,26,43,.88);backdrop-filter:blur(6px);border-radius:10px}
+.metric{display:flex;align-items:center;gap:11px;padding:9px 16px;border:1px solid var(--line);background:rgba(16,26,43,.94);border-radius:10px}
 .metric b{font-size:24px;line-height:1;color:var(--c,var(--text))}
 .metric span{font-size:14px;color:var(--mute)}
 .crew{position:relative;background:rgba(16,26,43,.92);border:1px solid var(--line);border-radius:10px;min-width:240px}
@@ -59,7 +59,7 @@ svg#office.drag{cursor:grabbing}
 
 /* cột phải */
 .side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding-right:2px}
-.panel{border:1px solid var(--line);background:rgba(16,26,43,.72);border-radius:12px;padding:14px 16px;min-width:0;backdrop-filter:blur(6px)}
+.panel{border:1px solid var(--line);background:rgba(16,26,43,.93);border-radius:12px;padding:14px 16px;min-width:0}
 .panel h3{margin:0 0 10px;font:700 13.5px ui-monospace,monospace;letter-spacing:.09em!important;color:var(--mint);display:flex;justify-content:space-between}
 .panel h3 em{font-style:normal;color:var(--mute2);font-weight:500}
 .scroll{max-height:300px;overflow:auto}

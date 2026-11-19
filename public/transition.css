@@ -1,0 +1,38 @@
+/* Chuyển tab mượt: thanh trên đứng yên, nội dung mờ dần rồi trượt lên; các khối vào lần lượt. Dùng chung cho mọi trang. */
+
+/* 1) Chuyển trang kiểu "một ứng dụng" (Chrome/Edge 126+): trình duyệt giữ khung cũ tới khi trang mới sẵn sàng, không chớp trắng */
+@view-transition{navigation:auto}
+.vp-bar,header.bar{view-transition-name:topbar}
+::view-transition-group(topbar){animation-duration:.01s}
+::view-transition-old(topbar),::view-transition-new(topbar){animation:none;mix-blend-mode:normal}
+::view-transition-old(topbar){display:none}
+::view-transition-old(root){animation:vtOut .16s ease-in both}
+::view-transition-new(root){animation:vtIn .26s ease-out both}
+@keyframes vtOut{to{opacity:0}}
+@keyframes vtIn{from{opacity:0}}
+
+@media (prefers-reduced-motion:no-preference){
+  /* 2) Các khối nội dung vào lần lượt (chỉ chạy một lần, không giữ transform để không phá vị trí cố định) */
+  body>*:not(#bg):not(.vp-bar):not(script):not(style):not(link):not(.app):not(.bar),.app>*,.side>*{animation:blockIn .5s cubic-bezier(.2,.7,.2,1) backwards}
+  body>*:nth-child(4),.app>*:nth-child(2),.side>*:nth-child(2){animation-delay:.05s}
+  body>*:nth-child(5),.app>*:nth-child(3),.side>*:nth-child(3){animation-delay:.1s}
+  body>*:nth-child(6),.side>*:nth-child(4){animation-delay:.15s}
+  body>*:nth-child(7){animation-delay:.2s}
+  body>*:nth-child(n+8){animation-delay:.25s}
+  @keyframes blockIn{from{opacity:0;transform:translateY(14px)}}
+
+  /* 3) Trạng thái chạm: nút, thẻ và tab phản hồi mượt */
+  .vp-nav a,nav a,button,.panel,.card,.metric,.crew-row,.task,.chip{transition:color .2s,background-color .2s,border-color .2s,box-shadow .2s,transform .2s}
+  .vp-nav a:hover,nav a:hover{transform:translateY(-1px)}
+  .vp-nav a:active,nav a:active,button:active{transform:scale(.97)}
+  .vp-nav a[aria-current=page],nav a[aria-current=page]{animation:tabPop .35s cubic-bezier(.2,.9,.3,1.3)}
+  @keyframes tabPop{from{transform:scale(.92);opacity:.6}}
+  .metric:hover,.panel:hover{border-color:var(--line2,#31476a)}
+  .metric:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .crew-row:hover{transform:translateX(3px)}
+  /* thanh trên: vạch sáng chạy dọc mép dưới cho cảm giác "máy đang chạy" */
+  .vp-bar::after,.bar::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:30%;background:linear-gradient(90deg,transparent,#62ead8,transparent);animation:barScan 5s ease-in-out infinite alternate;pointer-events:none}
+  @keyframes barScan{from{transform:translateX(-10%)}to{transform:translateX(250%)}}
+}
+.vp-bar,.bar{overflow:visible}
+.bar{position:relative}

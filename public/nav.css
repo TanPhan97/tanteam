@@ -1,7 +1,7 @@
 /* Thanh điều hướng trên cùng dùng chung cho mọi trang con: giống hệt thanh của trang Xưởng. */
 html{background:#050a14!important}
 body{background:transparent!important;box-sizing:border-box;padding-top:68px}
-.vp-bar{position:fixed;top:0;left:0;right:0;z-index:12;min-height:68px;border-bottom:1px solid #24344c;display:flex;align-items:center;justify-content:space-between;padding:8px 28px;gap:18px;background:rgba(11,19,34,.9);backdrop-filter:blur(8px);flex-wrap:wrap;font-family:Inter,system-ui,sans-serif}
+.vp-bar{position:fixed;top:0;left:0;right:0;z-index:12;min-height:68px;border-bottom:1px solid #24344c;display:flex;align-items:center;justify-content:space-between;padding:8px 28px;gap:18px;background:rgba(11,19,34,.96);flex-wrap:wrap;font-family:Inter,system-ui,sans-serif}
 .vp-brand{display:flex;gap:12px;align-items:center;color:#edf5ff;text-decoration:none}
 .vp-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:#143638;color:#62ead8;font-weight:800;font-size:24px}
 .vp-brand strong{letter-spacing:.12em!important;font-size:18px;display:block;text-transform:uppercase!important}

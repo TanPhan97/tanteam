@@ -452,7 +452,7 @@ function snapshot() {
   const recent = events.filter((e) => t - e.t < 24 * 3600000);
   const alerts = [];
   if (dev.idleSince && t - dev.idleSince > 15 * 60000 && dev.queue.length) alerts.push({ level: "warn", text: `DEV trống ${Math.round((t - dev.idleSince) / 60000)} phút, hàng chờ còn ${dev.queue.length} gói` });
-  if (dev.holderSince && t - dev.holderSince > 60 * 60000) alerts.push({ level: "warn", text: `Lượt DEV đã giữ ${Math.round((t - dev.holderSince) / 60000)} phút (${dev.holderLabel || "?"})` });
+  if (dev.holderSince && t - dev.holderSince > 45 * 60000) alerts.push({ level: "warn", text: `Lượt DEV đã giữ ${Math.round((t - dev.holderSince) / 60000)} phút (${dev.holderLabel || "?"})` });
   for (const a of out) if (a.flag === "blocked") alerts.push({ level: "bad", text: `${a.name} đang bị chặn` });
   if (sys.cFreeGB != null && sys.cFreeGB < 15) alerts.push({ level: "bad", text: `Ổ ${sys.diskLabel} chỉ còn ${sys.cFreeGB} GB` });
   const bad = sys.containers.filter((c) => !c.retired && (c.state !== "running" || /unhealthy|Restarting/i.test(c.status)));
@@ -480,7 +480,7 @@ function snapshot() {
   if (ht.tong && ht.tong.nhac2) alerts.push({ level: "bad", text: `Hòm thư: ${ht.tong.nhac2} tin đã đọc lại ≥ 2 lần mà chưa xong` });
   const { weekRows, ...devOut } = dev;
   return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: t, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
-    turns, team, tasks: taskView, sys, events: recent.slice(-300), alerts, asks: ceoAsks(out, t), money: moneyOf(week, t) };
+    turns, team, tasks: taskView, sys, events: recent.slice(-300), signals: signalsNow(), alerts, asks: ceoAsks(out, t), money: moneyOf(week, t) };
 }
 
 // ---------- vòng lặp ----------
@@ -495,6 +495,21 @@ setInterval(readSys, 15000);
 perf.scanAll(agents.filter((a) => !a.ceo)); setInterval(() => perf.scanAll(agents.filter((a) => !a.ceo)), 3000);
 
 // hòm thư, tổng quan, sổ sách: tính lại vài giây/lần, file chỉ đọc lại khi đổi
+// Tín hiệu giao việc: các tin trong hòm thư (vp gui, ô nhắn tin của văn phòng) trong 6 giờ qua. Giao diện dùng để cho hai bên vào phòng họp giao ban.
+let sigCache = { at: 0, rows: [] };
+function signalsNow() {
+  if (now() - sigCache.at < 1000) return sigCache.rows;
+  let rows = [];
+  try {
+    const cut = now() - 6 * 3600000;
+    for (const b of hopthu.state(path.join(DATA, "hop-thu")).values()) {
+      const t = Date.parse(b.luc || "") || 0; if (t < cut) continue;
+      rows.push({ id: b.id, t, from: clip(mask(b.tu || ""), 40), to: clip(mask(b.toi || ""), 40), title: clip(mask(String(b.tin || "").split("\n")[0]), 110) });
+    }
+    rows = rows.sort((x, y) => x.t - y.t).slice(-60);
+  } catch {}
+  sigCache = { at: now(), rows }; return rows;
+}
 let hopthuCache = { at: 0, data: null };
 function hopthuNow() {
   if (!hopthuCache.data || now() - hopthuCache.at >= 10000) { try { hopthuCache = { at: now(), data: hopthu.build(DATA, mask, agents) }; } catch (e) { hopthuCache = { at: now(), data: { error: String(e.message || e), roles: [], tong: {}, pending: { n: 0, ds: [] } } }; } }

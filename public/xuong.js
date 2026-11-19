@@ -281,13 +281,27 @@ function makeFig(a, pos) {
 }
 function say(f, text, ms, delay = 0) { f.speech = { text, from: performance.now() + delay, until: performance.now() + delay + ms }; }
 const greeted = new Map();
-const meet = { state: "idle", next: performance.now() + 25000, start: 0, hold: 0, talkAt: 0 };
+// Giao việc: khi có tin nhắn / tín hiệu giao nhiệm vụ, hai bên liên quan vào phòng họp giao ban, nói chuyện xong thì về phòng của mình.
+const huddles = [], pendingH = [], pairAt = new Map();
+const nb = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
+function figByLabel(label) {
+  const l = nb(label); if (!l || l === "?") return null;
+  if (/^(ceo|dai ca|giam doc|chu van phong)$/.test(l) || (last && nb(last.ownerName) === l)) return figs.ceo || null;
+  const vis = Object.values(figs).filter((f) => !f.hidden && !f.a.ceo);
+  return vis.find((f) => nb(f.a.name) === l) || vis.find((f) => { const n = nb(f.a.name); return n.length >= 3 && l.length >= 3 && (n.includes(l) || l.includes(n)); }) || null;
+}
+function queueHuddle(A, B, title) {
+  if (!A || !B || A === B || A.hidden || B.hidden) return;
+  const k = A.a.key + ">" + B.a.key, t = performance.now();
+  if (t - (pairAt.get(k) || -1e9) < 90000) return; pairAt.set(k, t);
+  pendingH.push({ A, B, title: String(title || "").replace(/^\[[^\]]*\]\s*/, ""), born: t });
+}
 function desired(f) {
   const a = f.a;
   if (f.meetSeat) return { k: "meet", p: f.meetSeat };
   if (a.where === "dev") return { k: "dev", p: DEV_SEAT };
   if (a.where === "g1q") return { k: "q" + Math.min(f.qIdx || 0, G1Q.length - 1), p: G1Q[Math.min(f.qIdx || 0, G1Q.length - 1)] };
-  if (a.virtual || ((a.status === "idle" || a.platform === "human") && !a.flag)) return { k: "wander" };
+  // chưa có việc giao thì mọi nhân vật (ảo hay phiên thật) đứng đúng chỗ trong phòng của mình; chỉ đi họp khi có giao - nhận việc
   return { k: "home", p: HOME[a.key] || [600, 400] };
 }
 const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
@@ -323,7 +337,8 @@ function stepFig(f, now, dt) {
     f.nextAt = now + (atHome && f.a.virtual ? rnd(...(f.a.homeDwell || [9, 18])) : rnd(5, 9)) * 1000;
     if (f.spot) say(f, f.spot.say, 3200); else if (atHome && f.a.virtual && Math.random() < .6) say(f, pick(f.a.homeSay), 3400);
   }
-  f.doing = f.meetSeat ? "Đang họp giao ban" : f.wp.length ? "Đang di chuyển" : f.spot ? f.spot.say : "Tại vị trí làm việc";
+  if (f.a.virtual && f.mode === "home" && !f.wp.length && !f.meetSeat && now >= f.nextAt && (!f.speech || now >= f.speech.until)) { say(f, pick(f.a.homeSay), 3400); f.nextAt = now + rnd(14000, 30000); }
+  f.doing = f.meetSeat ? "Đang giao - nhận việc ở phòng họp" : f.wp.length ? "Đang di chuyển" : f.spot ? f.spot.say : "Tại vị trí làm việc";
   const scr = desks[f.a.key];
   if (f.a.virtual && f.a.desk && scr) scr.setAttribute("fill", !f.wp.length && atHome ? "#62ead8" : "#0b1322");
   f.g.setAttribute("transform", `translate(${f.pos[0].toFixed(1)} ${f.pos[1].toFixed(1)})`);
@@ -337,26 +352,30 @@ function stepFig(f, now, dt) {
     f.bRect.setAttribute("stroke", sp ? "#62ead8" : f.labelCol || "#31476a"); f.bTxt.setAttribute("fill", col);
   }
 }
-// Họp giao ban định kỳ ở phòng họp chung: cả đội kéo về bàn, lần lượt phát biểu, rồi ai về chỗ nấy.
-function runMeeting(now) {
-  if (Motion.paused) return;
-  const all = Object.values(figs);
-  if (meet.state === "idle" && now >= meet.next) {
-    const crew = all.filter((f) => !f.hidden && (f.a.virtual || f.a.platform === "human"));
-    if (crew.length > 2) { meet.state = "gather"; meet.start = now; crew.slice(0, MEET_SEATS.length).forEach((f, i) => { f.meetSeat = MEET_SEATS[i]; }); }
-    else meet.next = now + 30000;
-  } else if (meet.state === "gather") {
-    const seated = all.filter((f) => f.meetSeat);
-    if (seated.every((f) => !f.wp.length) || now - meet.start > 50000) { meet.state = "hold"; meet.hold = now; meet.talkAt = now + 1200; }
-  } else if (meet.state === "hold") {
-    const seated = all.filter((f) => f.meetSeat && !f.wp.length);
-    if (now >= meet.talkAt && seated.length) { const f = pick(seated); say(f, f.a.talk ? pick(f.a.talk) : "Tôi nắm rồi", 3600); meet.talkAt = now + 4200; }
-    if (now - meet.hold > 28000) {
-      for (const f of all) if (f.meetSeat) { f.meetSeat = null; f.forceHome = true; f.nextAt = now + rnd(300, 2500); }
-      meet.state = "idle"; meet.next = now + rnd(100000, 150000);
-    }
+function runHuddles(now) {
+  if (!Object.keys(figs).length) return;
+  // bắt đầu: tin chờ, cả hai bên đang rảnh (chưa ở trong buổi giao việc khác) và còn cặp ghế đối diện
+  for (let i = 0; i < pendingH.length; i++) {
+    const h = pendingH[i];
+    if (now - h.born > 60000 || h.A.hidden || h.B.hidden || !figs[h.A.a.key] || !figs[h.B.a.key]) { pendingH.splice(i--, 1); continue; }
+    if (h.A.meetSeat || h.B.meetSeat) continue;
+    const used = new Set(huddles.flatMap((x) => [x.sa, x.sb]));
+    const sa = [0, 1, 2, 3, 4].find((k) => !used.has(k) && !used.has(k + 5));
+    if (sa == null) break;
+    h.A.meetSeat = MEET_SEATS[sa]; h.B.meetSeat = MEET_SEATS[sa + 5];
+    huddles.push({ A: h.A, B: h.B, sa, sb: sa + 5, state: "go", t0: now, t1: 0, title: h.title }); pendingH.splice(i--, 1);
   }
-  hallTxt.textContent = meet.state === "hold" ? "ĐANG HỌP GIAO BAN" : meet.state === "gather" ? "TẬP HỢP…" : "";
+  for (let i = huddles.length - 1; i >= 0; i--) {
+    const h = huddles[i], gone = h.A.hidden || h.B.hidden || !figs[h.A.a.key] || !figs[h.B.a.key];
+    if (!gone && h.state === "go" && ((!h.A.wp.length && !h.B.wp.length) || now - h.t0 > 45000)) {
+      h.state = "talk"; h.t1 = now;
+      say(h.A, "Giao việc: " + (h.title.length > 26 ? h.title.slice(0, 25) + "…" : h.title || "có việc mới"), 4200);
+      say(h.B, "Nhận việc, tôi làm ngay", 3400, 2600);
+    }
+    if (gone || (h.state === "talk" && now - h.t1 > 9000)) { h.A.meetSeat = null; h.B.meetSeat = null; huddles.splice(i, 1); } // xong việc: về phòng của mình
+  }
+  const h0 = huddles.find((h) => h.state === "talk") || huddles[0];
+  hallTxt.textContent = h0 ? `GIAO VIỆC: ${first(h0.A.a.name)} → ${first(h0.B.a.name)}` : "";
 }
 function greet(now) {
   const list = Object.values(figs).filter((f) => f.mode === "wander" && !f.speech && !f.wp.length);
@@ -371,8 +390,8 @@ function animate(now) {
   const dt = prev ? Math.min(now - prev, 100) : 0; prev = now;
   for (const f of Object.values(figs)) stepFig(f, now, dt);
   stepDoors(dt);
-  runMeeting(now);
-  if (!Motion.paused && meet.state === "idle") greet(now);
+  runHuddles(now);
+  if (!Motion.paused && !huddles.length) greet(now);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
@@ -403,6 +422,7 @@ function render(s) {
   const done = s.tasks.filter((t) => t.state === "done").length;
   document.title = s.title; $("ttl").textContent = s.title.toUpperCase();
   if (s.subtitle) $("sub").textContent = s.subtitle.toUpperCase();
+  try { localStorage.setItem("vp-title", s.title.toUpperCase()); if (s.subtitle) localStorage.setItem("vp-sub", s.subtitle.toUpperCase()); } catch {}
   $("clock").textContent = "TRỰC TIẾP · " + new Date(s.now).toLocaleTimeString("vi-VN");
   const M = $("metrics"); M.textContent = "";
   M.append(metric("Đang làm", act, "#62ead8"), metric("Chờ / chặn", wait, wait ? "#ffca76" : null), metric("Rảnh", idle),
@@ -453,7 +473,11 @@ function render(s) {
   for (const e of s.events) {
     const id = `${e.t}|${e.from}|${e.to}|${e.title}`;
     if (seenMsg.has(id)) continue; seenMsg.add(id);
-    if (!firstLoad && Date.now() - e.t < 120000) flyMsg(e);
+    if (!firstLoad && Date.now() - e.t < 120000) { flyMsg(e); queueHuddle(figs[e.from], figs[e.to], e.title); }
+  }
+  for (const m of s.signals || []) {
+    const id = "mail|" + m.id; if (seenMsg.has(id)) continue; seenMsg.add(id);
+    if (!firstLoad && Date.now() - m.t < 120000) queueHuddle(figByLabel(m.from), figByLabel(m.to), m.title);
   }
   firstLoad = false;
   renderCrew(s); renderSide(s);
@@ -538,5 +562,6 @@ setInterval(async () => {
   catch { $("live").className = "live off"; $("clock").textContent = "MẤT KẾT NỐI, ĐANG NỐI LẠI…"; }
 }, 1000);
 for (const v of CREW) { const f = makeFig(Object.assign({ platform: "virtual", virtual: true, status: "virtual", flag: "", sub: 0 }, v), v.home); f.g.dataset.status = "virtual"; }
+try { const ct = localStorage.getItem("vp-title"), cs = localStorage.getItem("vp-sub"); if (ct) $("ttl").textContent = ct; if (cs) $("sub").textContent = cs; } catch {}
 applyView();
 connect();
